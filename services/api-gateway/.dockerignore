@@ -1,0 +1,5 @@
+# Do not copy generated files or local dependencies into the service image.
+node_modules
+dist
+*.tsbuildinfo
+npm-debug.log

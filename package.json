@@ -1,0 +1,21 @@
+{
+  "name": "tzw-fire-extinguisher-platform",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Independent microservice workspace for the TZW LTD fire extinguisher management system.",
+  "scripts": {
+    "dev": "node scripts/dev-all.mjs",
+    "build": "npm --workspaces --if-present run build",
+    "build:services": "npm --workspace services/api-gateway run build && npm --workspace services/auth-service run build && npm --workspace services/extinguisher-service run build && npm --workspace services/inspection-service run build && npm --workspace services/report-service run build && npm --workspace services/notification-service run build",
+    "docker:config": "docker compose config",
+    "docker:up": "docker compose up --build"
+  },
+  "workspaces": [
+    "frontend",
+    "services/*"
+  ],
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

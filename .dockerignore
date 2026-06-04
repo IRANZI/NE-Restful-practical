@@ -1,0 +1,8 @@
+# Keep Docker build contexts small and avoid copying local runtime output.
+node_modules
+**/node_modules
+**/dist
+*.tsbuildinfo
+.env
+.env.local
+npm-debug.log

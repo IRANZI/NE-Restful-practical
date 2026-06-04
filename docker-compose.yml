@@ -1,0 +1,236 @@
+# Docker Compose mirrors the independent microservice folder structure.
+services:
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tzw_auth_service
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tzw_auth_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  extinguisher-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tzw_extinguisher_service
+    ports:
+      - "5434:5432"
+    volumes:
+      - extinguisher-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tzw_extinguisher_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  inspection-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tzw_inspection_service
+    ports:
+      - "5435:5432"
+    volumes:
+      - inspection-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tzw_inspection_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  report-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tzw_reporting_service
+    ports:
+      - "5436:5432"
+    volumes:
+      - report-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tzw_reporting_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  notification-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tzw_notification_service
+    ports:
+      - "5437:5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tzw_notification_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+    command: sh -c "npm run db:migrate && npm start"
+    environment:
+      NODE_ENV: production
+      NOTIFICATION_SERVICE_PORT: 4015
+      NOTIFICATION_DATABASE_URL: postgres://postgres:postgres@notification-db:5432/tzw_notification_service
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: "TZW LTD Safety <no-reply@tzw.local>"
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-before-production}
+      FRONTEND_ORIGIN: http://localhost:5174
+      DATABASE_SSL: "false"
+    # Internal service port only; the API gateway reaches this container on the Docker network.
+    expose:
+      - "4015"
+    depends_on:
+      notification-db:
+        condition: service_healthy
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+    command: sh -c "npm run db:migrate && npm run db:seed && npm start"
+    environment:
+      NODE_ENV: production
+      AUTH_SERVICE_PORT: 4011
+      AUTH_DATABASE_URL: postgres://postgres:postgres@auth-db:5432/tzw_auth_service
+      NOTIFICATION_SERVICE_URL: http://notification-service:4015
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-before-production}
+      JWT_EXPIRES_IN: 1d
+      PASSWORD_RESET_URL: http://localhost:5174/reset-password
+      FRONTEND_ORIGIN: http://localhost:5174
+      DATABASE_SSL: "false"
+    # Internal service port only; expose public APIs through api-gateway.
+    expose:
+      - "4011"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      notification-service:
+        condition: service_started
+
+  extinguisher-service:
+    build:
+      context: ./services/extinguisher-service
+    command: sh -c "npm run db:migrate && npm run db:seed && npm start"
+    environment:
+      NODE_ENV: production
+      EXTINGUISHER_SERVICE_PORT: 4012
+      EXTINGUISHER_DATABASE_URL: postgres://postgres:postgres@extinguisher-db:5432/tzw_extinguisher_service
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-before-production}
+      FRONTEND_ORIGIN: http://localhost:5174
+      DATABASE_SSL: "false"
+    # Internal service port only; expose public APIs through api-gateway.
+    expose:
+      - "4012"
+    depends_on:
+      extinguisher-db:
+        condition: service_healthy
+
+  inspection-service:
+    build:
+      context: ./services/inspection-service
+    command: sh -c "npm run db:migrate && npm start"
+    environment:
+      NODE_ENV: production
+      INSPECTION_SERVICE_PORT: 4013
+      INSPECTION_DATABASE_URL: postgres://postgres:postgres@inspection-db:5432/tzw_inspection_service
+      EXTINGUISHER_SERVICE_URL: http://extinguisher-service:4012
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-before-production}
+      FRONTEND_ORIGIN: http://localhost:5174
+      DATABASE_SSL: "false"
+    # Internal service port only; expose public APIs through api-gateway.
+    expose:
+      - "4013"
+    depends_on:
+      inspection-db:
+        condition: service_healthy
+      extinguisher-service:
+        condition: service_started
+
+  report-service:
+    build:
+      context: ./services/report-service
+    command: sh -c "npm run db:migrate && npm start"
+    environment:
+      NODE_ENV: production
+      REPORTING_SERVICE_PORT: 4014
+      REPORTING_DATABASE_URL: postgres://postgres:postgres@report-db:5432/tzw_reporting_service
+      EXTINGUISHER_SERVICE_URL: http://extinguisher-service:4012
+      INSPECTION_SERVICE_URL: http://inspection-service:4013
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-before-production}
+      FRONTEND_ORIGIN: http://localhost:5174
+      DATABASE_SSL: "false"
+    # Internal service port only; expose public APIs through api-gateway.
+    expose:
+      - "4014"
+    depends_on:
+      report-db:
+        condition: service_healthy
+      extinguisher-service:
+        condition: service_started
+      inspection-service:
+        condition: service_started
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+    environment:
+      NODE_ENV: production
+      GATEWAY_PORT: 4008
+      AUTH_SERVICE_URL: http://auth-service:4011
+      EXTINGUISHER_SERVICE_URL: http://extinguisher-service:4012
+      INSPECTION_SERVICE_URL: http://inspection-service:4013
+      REPORTING_SERVICE_URL: http://report-service:4014
+      NOTIFICATION_SERVICE_URL: http://notification-service:4015
+      FRONTEND_ORIGIN: http://localhost:5174
+    # Keep the gateway internal in Docker; frontend Nginx proxies /api and /api-docs to it.
+    expose:
+      - "4008"
+    depends_on:
+      auth-service:
+        condition: service_started
+      extinguisher-service:
+        condition: service_started
+      inspection-service:
+        condition: service_started
+      report-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      api-gateway:
+        condition: service_started
+
+volumes:
+  auth-db-data:
+  extinguisher-db-data:
+  inspection-db-data:
+  report-db-data:
+  notification-db-data:

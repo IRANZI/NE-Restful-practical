@@ -1,0 +1,608 @@
+openapi: 3.0.3
+info:
+  title: TZW LTD Fire Extinguisher Management API
+  version: 2.0.0
+  description: API gateway contract for the microservice-based fire extinguisher management system. Requests are routed to auth, extinguisher, inspection, reporting, and notification services.
+servers:
+  - url: /
+    description: Same-origin API gateway used by Swagger UI and Docker
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+  - name: Authentication
+  - name: Users
+  - name: Fire Extinguishers
+  - name: Inspections
+  - name: Maintenance
+  - name: Reports
+paths:
+  /health:
+    get:
+      security: []
+      tags: [Health]
+      summary: Check API health
+      responses:
+        "200":
+          description: API is running
+  /api/auth/register:
+    post:
+      security: []
+      tags: [Authentication]
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered
+        "409":
+          description: Email already exists
+  /api/auth/login:
+    post:
+      security: []
+      tags: [Authentication]
+      summary: Login and receive a JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+        "401":
+          description: Invalid credentials
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout from the current client session
+      responses:
+        "200":
+          description: Client can discard token
+  /api/auth/forgot-password:
+    post:
+      security: []
+      tags: [Authentication]
+      summary: Request a password reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Reset instructions handled
+  /api/auth/reset-password:
+    post:
+      security: []
+      tags: [Authentication]
+      summary: Reset password using email token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, token, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                token:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        "200":
+          description: Password reset
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: View current user profile
+      responses:
+        "200":
+          description: Current profile
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+  /api/users/me/password:
+    patch:
+      tags: [Users]
+      summary: Change current user password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+      responses:
+        "200":
+          description: Password changed
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List users
+      description: Admin only.
+      responses:
+        "200":
+          description: User records
+    post:
+      tags: [Users]
+      summary: Create a user account
+      description: Admin only. Use this endpoint to create Inspector or staff Admin accounts; public registration always creates a User account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCreateUserRequest"
+      responses:
+        "201":
+          description: User created
+  /api/users/{id}:
+    patch:
+      tags: [Users]
+      summary: Update a user
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+    delete:
+      tags: [Users]
+      summary: Delete a user
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: User deleted
+  /api/extinguishers:
+    get:
+      tags: [Fire Extinguishers]
+      summary: List fire extinguishers
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/ExtinguisherStatus"
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Extinguisher records
+    post:
+      tags: [Fire Extinguishers]
+      summary: Register a new fire extinguisher
+      description: Admin and Inspector roles.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExtinguisherRequest"
+            examples:
+              valid:
+                value:
+                  serialNumber: FE-2026-004
+                  location: Main Building - First Floor
+                  type: CO2
+                  size: 5 lb
+                  installationDate: "2026-01-15"
+                  expiryDate: "2031-01-15"
+                  status: Active
+      responses:
+        "201":
+          description: Fire extinguisher registered
+        "409":
+          description: Serial number already exists
+  /api/extinguishers/{id}:
+    get:
+      tags: [Fire Extinguishers]
+      summary: View fire extinguisher details
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Extinguisher details
+    patch:
+      tags: [Fire Extinguishers]
+      summary: Update fire extinguisher details
+      description: Admin and Inspector roles.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateExtinguisherRequest"
+      responses:
+        "200":
+          description: Extinguisher updated
+    delete:
+      tags: [Fire Extinguishers]
+      summary: Delete a fire extinguisher
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Extinguisher deleted
+  /api/inspections:
+    get:
+      tags: [Inspections]
+      summary: List inspections
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/InspectionStatus"
+        - in: query
+          name: extinguisherId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: inspectorId
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Inspection records
+    post:
+      tags: [Inspections]
+      summary: Schedule an inspection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleInspectionRequest"
+      responses:
+        "201":
+          description: Inspection scheduled
+  /api/inspections/{id}:
+    get:
+      tags: [Inspections]
+      summary: View inspection details
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Inspection details
+    patch:
+      tags: [Inspections]
+      summary: Update inspection details
+      description: Admin and Inspector roles.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateInspectionRequest"
+      responses:
+        "200":
+          description: Inspection updated
+  /api/inspections/{id}/complete:
+    post:
+      tags: [Inspections]
+      summary: Complete an inspection
+      description: Admin and Inspector roles.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [result]
+              properties:
+                result:
+                  type: string
+                  example: Passed
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Inspection completed
+  /api/maintenance:
+    get:
+      tags: [Maintenance]
+      summary: List maintenance logs
+      parameters:
+        - in: query
+          name: extinguisherId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: inspectorId
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Maintenance logs
+    post:
+      tags: [Maintenance]
+      summary: Log maintenance activity
+      description: Admin and Inspector roles.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMaintenanceRequest"
+      responses:
+        "201":
+          description: Maintenance logged
+  /api/maintenance/{id}:
+    get:
+      tags: [Maintenance]
+      summary: View maintenance details
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Maintenance details
+  /api/reports/summary:
+    get:
+      tags: [Reports]
+      summary: Generate real-time dashboard report
+      responses:
+        "200":
+          description: Report summary
+  /api/reports/inventory.csv:
+    get:
+      tags: [Reports]
+      summary: Export inventory report as CSV
+      description: Admin and Inspector roles.
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+  /api/reports/maintenance.csv:
+    get:
+      tags: [Reports]
+      summary: Export maintenance report as CSV
+      description: Admin and Inspector roles.
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdParam:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    UserRole:
+      type: string
+      enum: [Admin, Inspector, User]
+    ExtinguisherType:
+      type: string
+      enum: [Water, CO2, Foam, Dry Chemical]
+    ExtinguisherSize:
+      type: string
+      enum: [1.5 lb, 5 lb, 9 lb, 12 lb]
+    ExtinguisherStatus:
+      type: string
+      enum: [Active, Needs Inspection, Expired, In Maintenance, Retired]
+    InspectionStatus:
+      type: string
+      enum: [Scheduled, Completed, Overdue, Cancelled]
+    RegisterRequest:
+      type: object
+      required: [firstName, lastName, email, password]
+      properties:
+        firstName:
+          type: string
+          example: Aline
+        lastName:
+          type: string
+          example: Ntwali
+        email:
+          type: string
+          format: email
+          example: aline@tzw.local
+        password:
+          type: string
+          minLength: 8
+          example: password123
+    AdminCreateUserRequest:
+      allOf:
+        - $ref: "#/components/schemas/RegisterRequest"
+        - type: object
+          required: [role]
+          properties:
+            role:
+              $ref: "#/components/schemas/UserRole"
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@tzw.local
+        password:
+          type: string
+          example: password123
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+    AdminUpdateUserRequest:
+      allOf:
+        - $ref: "#/components/schemas/UpdateProfileRequest"
+        - type: object
+          properties:
+            role:
+              $ref: "#/components/schemas/UserRole"
+    CreateExtinguisherRequest:
+      type: object
+      required: [serialNumber, location, type, size, installationDate, expiryDate, status]
+      properties:
+        serialNumber:
+          type: string
+          example: FE-2026-001
+        location:
+          type: string
+          example: Main Building - First Floor
+        type:
+          $ref: "#/components/schemas/ExtinguisherType"
+        size:
+          $ref: "#/components/schemas/ExtinguisherSize"
+        installationDate:
+          type: string
+          format: date
+        expiryDate:
+          type: string
+          format: date
+        status:
+          $ref: "#/components/schemas/ExtinguisherStatus"
+        assignedTo:
+          type: string
+          format: uuid
+          nullable: true
+    UpdateExtinguisherRequest:
+      type: object
+      properties:
+        serialNumber:
+          type: string
+        location:
+          type: string
+        type:
+          $ref: "#/components/schemas/ExtinguisherType"
+        size:
+          $ref: "#/components/schemas/ExtinguisherSize"
+        installationDate:
+          type: string
+          format: date
+        expiryDate:
+          type: string
+          format: date
+        status:
+          $ref: "#/components/schemas/ExtinguisherStatus"
+        assignedTo:
+          type: string
+          format: uuid
+          nullable: true
+    ScheduleInspectionRequest:
+      type: object
+      required: [extinguisherId, scheduledFor]
+      properties:
+        extinguisherId:
+          type: string
+          format: uuid
+        inspectorId:
+          type: string
+          format: uuid
+          nullable: true
+        scheduledFor:
+          type: string
+          format: date-time
+        notes:
+          type: string
+    UpdateInspectionRequest:
+      type: object
+      properties:
+        inspectorId:
+          type: string
+          format: uuid
+          nullable: true
+        scheduledFor:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/InspectionStatus"
+        result:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    CreateMaintenanceRequest:
+      type: object
+      required: [extinguisherId, actionTaken, maintenanceDate]
+      properties:
+        extinguisherId:
+          type: string
+          format: uuid
+        inspectorId:
+          type: string
+          format: uuid
+          nullable: true
+        actionTaken:
+          type: string
+          example: Replaced pressure gauge and refilled unit
+        issuesIdentified:
+          type: string
+        notes:
+          type: string
+        maintenanceDate:
+          type: string
+          format: date

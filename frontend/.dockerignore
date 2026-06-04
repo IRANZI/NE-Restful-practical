@@ -1,0 +1,6 @@
+# Keep Docker builds focused on source and package metadata.
+node_modules
+dist
+*.tsbuildinfo
+.env.local
+npm-debug.log
